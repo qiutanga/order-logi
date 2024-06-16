@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>订单管理</title>
+    <meta name="renderer" content="webkit">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://lf9-cdn-tos.bytecdntp.com/cdn/expire-1-M/layui/2.6.8/css/layui.min.css" rel="stylesheet">
+</head>
+
+<body>
+<fieldset class="layui-elem-field layui-field-title" style="margin-top: 20px;">
+    <legend>订单管理</legend>
+</fieldset>
+<!--面板-->
+<div class="layui-card">
+    <div class="layui-card-body">
+        <label class="layui-form-label">订单编号</label>
+        <div class="layui-input-inline">
+            <input type="text" id="orderId" class="layui-input">
+        </div>
+        <button onclick="search();" class="layui-btn"><i class="layui-icon">&#xe615;</i></button>
+    </div>
+</div>
+
+<div style="padding: 50px;margin-bottom: 100px">
+    <div class="layui-col-md12">
+        <div class="layui-card">
+            <div class="layui-card-header">订单信息</div>
+            <div class="layui-card-body" id="order">
+            </div>
+        </div>
+    </div>
+    <div class="layui-col-md12">
+        <div class="layui-card">
+            <div class="layui-card-header">物流信息</div>
+            <div class="layui-card-body">
+
+                <ul class="layui-timeline" id="logistics">
+
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="layui-col-md12">
+        <div class="layui-card">
+            <div class="layui-card-header">订单列表</div>
+            <div class="layui-card-body" >
+                <!--        数据表格-->
+                <table id="orderList" lay-filter="orderTable"></table>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+
+
+<script type="text/html" id="toolbarDemo"></script>
+<!--行工具事件-->
+<script type="text/html" id="barDemo">
+    <a class="layui-btn layui-btn-xs" lay-event="edit" href="edit.html" target="container">编辑</a>
+    <a class="layui-btn layui-btn-danger layui-btn-xs" lay-event="del">删除</a>
+
+</script>
+
+<script src="https://lf26-cdn-tos.bytecdntp.com/cdn/expire-1-M/jquery/3.6.0/jquery.min.js"></script>
+<script src="https://lf9-cdn-tos.bytecdntp.com/cdn/expire-1-M/layui/2.6.8/layui.min.js"></script>
+<script>
+    function search() {
+        var orderId = $("#orderId").val();
+        $.ajax({
+            url:"/order/" + orderId,
+            type:"GET",
+            dataType:"JSON",
+            success: function (order) {
+                if (order == null || order == undefined || order == "") {
+                    layer.msg("订单不存在");
+                    return;
+                }
+
+                $("#order").append("订单编号:" + orderId + "(" + order["status"] + ") <hr/>")
+                    .append("发货人：" + order["shipper"] + "<br/>")
+                    .append("发货人地址：" + order["shipperAddress"] + "<br/>")
+                    .append("发货人电话：" + order["shipperPhone"] + "<br/>")
+                    .append("下单时间：" + order["orderTime"] + "<br/>")
+                    .append("发货时间：" + order["shipTime"] + "<hr/>")
+                    .append("收货人：" + order["receiver"] + "<br/>")
+                    .append("收货人地址：" + order["receiverAddress"] + "<br/>")
+                    .append("收货人手机：" + order["receiverPhone"]);
+
+                let logistics = order['logistics'];
+
+                for (var i = logistics.length - 1; i >= 0; i--) {
+                    $("#logistics").append(' <li class="layui-timeline-item">' +
+                        '<i class="layui-icon layui-timeline-axis">&#xe63f;</i>' +
+                        '<div class="layui-timeline-content layui-text">' +
+                        '<h3 class="layui-timeline-title">' +
+                        '(' + logistics[i].operation + ')' +
+                        logistics[i].operationTime + '</h3>' +
+                        '<p>' + logistics[i].details + '</p>' +
+                        '<p>操作员：' + logistics[i].operator + '&nbsp;' +
+                        '操作员电话：' + logistics[i].phone + '&nbsp;' +
+                        '操作地址：' + logistics[i].address + '</p></div></li>');
+
+
+                }
+
+            },
+        });
+    }
+    //数据表格
+    layui.use('table', function(){
+        var table = layui.table;
+
+        //第一个实例
+        table.render({
+            elem: '#orderList'
+            ,height: 312
+            ,url: '/order/list' //数据接口
+            ,page: true //开启分页
+            ,toolbar: '#toolbarDemo'
+            ,cols: [[ //表头
+                {field: 'id', title: '订单编号', sort: true, fixed: 'left'}
+                ,{field: 'status', title: '订单状态'}
+                ,{field: 'orderTime', title: '下单时间', sort: true}
+                ,{field: 'shipper', title: '发货人'}
+                ,{field: 'shipperAddress', title: '发货地址'}
+                ,{field: 'shipperPhone', title: '发货人电话'}
+                ,{field: 'receiver', title: '收货人', edit:'text'}
+                ,{field: 'receiverAddress', title: '收货人地址'}
+                ,{field: 'receiverPhone', title: '收货人电话'}
+                ,{field: 'right', title: '操作', toolbar:'#barDemo'}
+            ]]
+        });
+
+        //单元格工具事件
+        table.on('tool(orderTable)', function(obj){ // 注：test 是 table 原始标签的属性 lay-filter="对应的值"
+            var data = obj.data; //获得当前行数据
+            var layEvent = obj.event; //获得 lay-event 对应的值（也可以是表头的 event 参数对应的值）
+            var tr = obj.tr; //获得当前行 tr 的 DOM 对象（如果有的话）
+
+            if(layEvent === 'detail'){ //查看
+                //do somehing
+            } else if(layEvent === 'del'){ //删除
+                layer.confirm('确定删除吗？', function(index){
+                    obj.del(); // 删除对应行（tr）的 DOM 结构，并更新缓存
+                    layer.close(index);
+                    $.ajax({
+                        url:"/order/delete",
+                        type:"POST",
+                        data: {"id":data.id},
+                        dataType:"JSON",
+                        success: function (result) {
+                            layer.msg(result);
+                        }
+                    });
+
+
+                });
+            } else if(layEvent === 'edit'){ //编辑
+
+                layer.confirm('确定修改吗？', function(index){
+                    obj.update(); //
+                    layer.close(index);
+                    $.ajax({
+                        url:"/order/update",
+                        type:"POST",
+                        data: data.field,
+                        dataType:"JSON  ",
+                        success: function (result) {
+                            layer.msg(result);
+                        }
+                    });
+
+
+                });
+
+                //do something
+
+                // 同步更新缓存对应的值
+                // 该方法仅为前端层面的临时更新，在实际业务中需提交后端请求完成真实的数据更新。
+                // obj.update({
+                //     username: '123',
+                //     title: 'abc'
+                // });
+                // // 若需更新其他包含自定义模板并可能存在关联的列视图，可在第二个参数传入 true
+                // obj.update({
+                //     username: '123'
+                // }, true); // 注：参数二传入 true 功能为 v2.7.4 新增
+
+
+            }
+        });
+
+    });
+</script>
+
+</body>
+</html>
